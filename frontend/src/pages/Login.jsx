@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext'
 
 export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' })
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const toast = useToast()
@@ -61,16 +62,31 @@ export default function Login() {
 
           <div className="form-group">
             <label className="form-label">Password</label>
-            <div className="input-group">
+            <div className="input-group" style={{ position: 'relative' }}>
               <i className="bi bi-lock input-icon"></i>
               <input
                 className="form-control"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 required
+                style={{ paddingRight: 40 }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{
+                  position: 'absolute', right: 11, top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--gray-400)', fontSize: '1rem',
+                  transition: 'color 0.15s', background: 'none', border: 'none',
+                  cursor: 'pointer', padding: '2px 4px',
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+              </button>
             </div>
           </div>
 
@@ -85,24 +101,6 @@ export default function Login() {
           Don't have an account?{' '}
           <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 600 }}>Create one</Link>
         </p>
-
-        {/* Demo credentials */}
-        <div style={{
-          marginTop: 24,
-          padding: '12px 14px',
-          background: 'var(--gray-50)',
-          borderRadius: 'var(--border-radius-sm)',
-          border: '1px solid var(--gray-200)'
-        }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-500)', marginBottom: 6 }}>
-            <i className="bi bi-info-circle" style={{ marginRight: 5 }}></i>DEMO CREDENTIALS
-          </p>
-          <p style={{ fontSize: '0.78rem', color: 'var(--gray-600)', fontFamily: 'var(--font-mono)' }}>
-            admin / admin123<br />
-            staff / staff123<br />
-            customer / pass123
-          </p>
-        </div>
       </div>
     </div>
   )
