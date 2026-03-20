@@ -91,7 +91,7 @@ HOSPITAL_QUEUES = [
         "prefix": "MCH",
         "avg_service_time": 20,
     },
-    {
+    { 
         "name": "Radiology & Imaging",
         "description": "X-ray, ultrasound, and CT scan bookings",
         "prefix": "RAD",
