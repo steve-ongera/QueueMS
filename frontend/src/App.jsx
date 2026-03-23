@@ -18,6 +18,8 @@ import LiveDisplay from './pages/LiveDisplay'
 import Notifications from './pages/Notifications'
 import Profile from './pages/Profile'
 import Users from './pages/Users'
+import Reports from './pages/Reports'
+import Settings from './pages/Settings'
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth()
@@ -41,16 +43,18 @@ function AppLayout() {
       <div className={`main-content ${collapsed ? 'collapsed' : ''}`}>
         <Navbar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
         <Routes>
-          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/queues" element={<ProtectedRoute><Queues /></ProtectedRoute>} />
-          <Route path="/my-tickets" element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
-          <Route path="/serve" element={<ProtectedRoute roles={['admin','staff']}><ServeQueue /></ProtectedRoute>} />
-          <Route path="/counters" element={<ProtectedRoute roles={['admin','staff']}><Counters /></ProtectedRoute>} />
-          <Route path="/display" element={<ProtectedRoute><LiveDisplay /></ProtectedRoute>} />
-          <Route path="/users" element={<ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>} />
+          <Route path="/"             element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/queues"       element={<ProtectedRoute><Queues /></ProtectedRoute>} />
+          <Route path="/my-tickets"   element={<ProtectedRoute><MyTickets /></ProtectedRoute>} />
+          <Route path="/serve"        element={<ProtectedRoute roles={['admin','staff']}><ServeQueue /></ProtectedRoute>} />
+          <Route path="/counters"     element={<ProtectedRoute roles={['admin','staff']}><Counters /></ProtectedRoute>} />
+          <Route path="/display"      element={<ProtectedRoute><LiveDisplay /></ProtectedRoute>} />
+          <Route path="/users"        element={<ProtectedRoute roles={['admin']}><Users /></ProtectedRoute>} />
+          <Route path="/reports"      element={<ProtectedRoute roles={['admin']}><Reports /></ProtectedRoute>} />
+          <Route path="/settings"     element={<ProtectedRoute roles={['admin']}><Settings /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/profile"      element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="*"             element={<Navigate to="/" replace />} />
         </Routes>
       </div>
       <Chatbot />
@@ -71,9 +75,9 @@ export default function App() {
       <AuthProvider>
         <ToastProvider>
           <Routes>
-            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/login"    element={<PublicRoute><Login /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route path="/*" element={<AppLayout />} />
+            <Route path="/*"        element={<AppLayout />} />
           </Routes>
         </ToastProvider>
       </AuthProvider>
