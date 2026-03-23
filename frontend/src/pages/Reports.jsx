@@ -1,5 +1,80 @@
 import { useState, useEffect, useRef } from 'react'
 import api from '../services/api'
+import * as XLSX from 'xlsx'
+
+// ── Excel export helpers ─────────────────────────────────────────────────────
+function exportToExcel(tickets, queues, stats) {
+  const wb = XLSX.utils.book_new()
+
+  // ── Sheet 1: Ticket Details ──────────────────────────────────────────────
+  const ticketRows = tickets.map(t => ({
+    'Token':           t.token_display,
+    'Queue':           t.queue_name || t.queue,
+    'Customer':        t.customer_name || '—',
+    'Phone':           t.customer_phone || '—',
+    'Status':          t.status,
+    'Priority':        t.priority,
+    'Counter':         t.counter_name || '—',
+    'Position':        t.position ?? '—',
+    'Est. Wait (min)': t.estimated_wait ?? '—',
+    'Created At':      t.created_at   ? new Date(t.created_at).toLocaleString()   : '—',
+    'Called At':       t.called_at    ? new Date(t.called_at).toLocaleString()    : '—',
+    'Completed At':    t.completed_at ? new Date(t.completed_at).toLocaleString() : '—',
+  }))
+  const ws1 = XLSX.utils.json_to_sheet(ticketRows.length ? ticketRows : [{ 'Info': 'No ticket data' }])
+  ws1['!cols'] = Array(12).fill({ wch: 18 })
+  XLSX.utils.book_append_sheet(wb, ws1, 'Tickets')
+
+  // ── Sheet 2: Queue Summary ───────────────────────────────────────────────
+  const queueRows = queues.map(q => ({
+    'Queue Name':        q.name,
+    'Prefix':            q.prefix,
+    'Status':            q.status,
+    'Waiting':           q.waiting_count,
+    'Max Capacity':      q.max_capacity,
+    'Fill %':            Math.min(100, Math.round((q.waiting_count / q.max_capacity) * 100)),
+    'Avg Service (min)': q.avg_service_time,
+    'Current Token':     q.current_number || '—',
+  }))
+  const ws2 = XLSX.utils.json_to_sheet(queueRows.length ? queueRows : [{ 'Info': 'No queue data' }])
+  ws2['!cols'] = Array(8).fill({ wch: 18 })
+  XLSX.utils.book_append_sheet(wb, ws2, 'Queues')
+
+  // ── Sheet 3: Summary Stats ───────────────────────────────────────────────
+  const summaryRows = [
+    { 'Metric': 'Export Date',        'Value': new Date().toLocaleDateString() },
+    { 'Metric': 'Total Tickets',       'Value': tickets.length },
+    { 'Metric': 'Waiting',             'Value': tickets.filter(t => t.status === 'waiting').length },
+    { 'Metric': 'Serving',             'Value': tickets.filter(t => t.status === 'serving').length },
+    { 'Metric': 'Completed',           'Value': tickets.filter(t => t.status === 'completed').length },
+    { 'Metric': 'Cancelled',           'Value': tickets.filter(t => t.status === 'cancelled').length },
+    { 'Metric': 'Skipped',             'Value': tickets.filter(t => t.status === 'skipped').length },
+    { 'Metric': 'Normal Priority',     'Value': tickets.filter(t => t.priority === 'normal').length },
+    { 'Metric': 'Priority',            'Value': tickets.filter(t => t.priority === 'priority').length },
+    { 'Metric': 'Urgent',              'Value': tickets.filter(t => t.priority === 'urgent').length },
+    { 'Metric': 'Completed Today',     'Value': stats?.total_completed_today ?? '—' },
+    { 'Metric': 'Active Queues',       'Value': queues.filter(q => q.status === 'open').length },
+    { 'Metric': 'Avg Wait Time (min)', 'Value': stats?.avg_wait_time ? Number(stats.avg_wait_time).toFixed(1) : '—' },
+  ]
+  const ws3 = XLSX.utils.json_to_sheet(summaryRows)
+  ws3['!cols'] = [{ wch: 28 }, { wch: 18 }]
+  XLSX.utils.book_append_sheet(wb, ws3, 'Summary')
+
+  // ── Sheet 4: Hourly Distribution ─────────────────────────────────────────
+  const hourBuckets = Array(24).fill(0)
+  tickets.forEach(t => {
+    if (t.created_at) hourBuckets[new Date(t.created_at).getHours()]++
+  })
+  const hourRows = hourBuckets.map((count, h) => ({
+    'Hour':    `${String(h).padStart(2, '0')}:00`,
+    'Tickets': count,
+  }))
+  const ws4 = XLSX.utils.json_to_sheet(hourRows)
+  ws4['!cols'] = [{ wch: 10 }, { wch: 10 }]
+  XLSX.utils.book_append_sheet(wb, ws4, 'Hourly')
+
+  XLSX.writeFile(wb, `QueueMS_Report_${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
 
 // ── tiny chart helpers ──────────────────────────────────────────────────────
 function useChart(ref, type, data, options) {
@@ -202,7 +277,7 @@ export default function Reports() {
           <h1 className="page-title">Reports & Analytics</h1>
           <p className="page-subtitle">Queue performance overview</p>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
           {['today','week','month'].map(r => (
             <button
               key={r}
@@ -213,6 +288,15 @@ export default function Reports() {
               {r}
             </button>
           ))}
+          <button
+            className="btn btn-secondary"
+            onClick={() => exportToExcel(tickets, queues, stats)}
+            style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 16px', fontSize:'0.85rem', borderColor:'var(--success)', color:'var(--success)' }}
+            title="Export all data to Excel"
+          >
+            <i className="bi bi-file-earmark-excel-fill"></i>
+            Export Excel
+          </button>
         </div>
       </div>
 
@@ -269,7 +353,31 @@ export default function Reports() {
 
       {/* Queue Summary Table */}
       <div className="card" style={{ padding:24 }}>
-        <h3 style={{ fontSize:'0.95rem', fontWeight:600, marginBottom:16 }}>Queue Summary</h3>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <h3 style={{ fontSize:'0.95rem', fontWeight:600, margin:0 }}>Queue Summary</h3>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              const rows = queues.map(q => ({
+                'Queue Name':        q.name,
+                'Prefix':            q.prefix,
+                'Status':            q.status,
+                'Waiting':           q.waiting_count,
+                'Max Capacity':      q.max_capacity,
+                'Fill %':            Math.min(100, Math.round((q.waiting_count / q.max_capacity) * 100)),
+                'Avg Service (min)': q.avg_service_time,
+              }))
+              const wb = XLSX.utils.book_new()
+              const ws = XLSX.utils.json_to_sheet(rows)
+              ws['!cols'] = Array(7).fill({ wch: 18 })
+              XLSX.utils.book_append_sheet(wb, ws, 'Queue Summary')
+              XLSX.writeFile(wb, `QueueMS_Queues_${new Date().toISOString().slice(0,10)}.xlsx`)
+            }}
+            style={{ fontSize:'0.78rem', padding:'4px 12px', display:'flex', alignItems:'center', gap:5, borderColor:'var(--success)', color:'var(--success)' }}
+          >
+            <i className="bi bi-download"></i> Export
+          </button>
+        </div>
         <div style={{ overflowX:'auto' }}>
           <table className="table">
             <thead>
